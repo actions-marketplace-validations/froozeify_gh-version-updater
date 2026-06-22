@@ -46,7 +46,7 @@ jobs:
 
 | Input                 | Required | Default                                                      | Description                                                                   |
 |-----------------------|----------|--------------------------------------------------------------|-------------------------------------------------------------------------------|
-| `version`             | no       | `${{ github.ref_name }}`                                     | Version string. A leading `v` is stripped automatically (`v1.2.3` → `1.2.3`). |
+| `version`             | no       | `${{ github.event.release.tag_name \|\| github.ref_name }}`  | Version string. A leading `v` is stripped automatically (`v1.2.3` → `1.2.3`). |
 | `files`               | no       | `auto`                                                       | `auto` to detect known config files, or a comma-separated list of paths.      |
 | `custom-rules`        | no       | `""`                                                         | Extra update rules for unsupported file formats (see below).                  |
 | `commit`              | no       | `true`                                                       | Set to `false` to skip the commit step.                                       |
