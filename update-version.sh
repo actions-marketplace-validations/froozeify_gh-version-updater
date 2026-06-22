@@ -72,7 +72,8 @@ write_step_summary() {
   local raw_version="$2"
   local did_commit="$3"
   local commit_branch="$4"
-  shift 4
+  local action_ref="$5"
+  shift 5
   local files=("$@")
 
   [[ -z "${GITHUB_STEP_SUMMARY:-}" ]] && return
@@ -90,6 +91,8 @@ write_step_summary() {
     else
       echo "| **Committed** | Skipped (commit: false) |"
     fi
+
+    [[ -n "${action_ref}" ]] && echo "| **Action version** | \`${action_ref}\` |"
 
     echo ""
     echo "### Updated files"
@@ -114,6 +117,7 @@ main() {
   local author_name="${INPUT_COMMIT_AUTHOR_NAME}"
   local author_email="${INPUT_COMMIT_AUTHOR_EMAIL}"
   local token="${INPUT_TOKEN}"
+  local action_ref="${INPUT_ACTION_REF:-}"
 
   # --- Resolve version ---
   step "Resolving version"
@@ -121,6 +125,7 @@ main() {
   version="$(strip_v_prefix "${raw_version}")"
   log "Tag    : ${raw_version}"
   log "Version: ${version}"
+  [[ -n "${action_ref}" ]] && log "Action : ${action_ref}"
 
   if [[ -z "${version}" ]]; then
     fail "Resolved version is empty (input was '${raw_version}'). Refusing to update files."
@@ -174,6 +179,7 @@ main() {
     "${raw_version}" \
     "${do_commit}" \
     "${commit_branch}" \
+    "${action_ref}" \
     "${UPDATED_FILES[@]}"
 
   step "Done"

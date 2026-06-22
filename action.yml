@@ -101,4 +101,5 @@ runs:
         INPUT_COMMIT_AUTHOR_NAME: ${{ inputs.commit-author-name }}
         INPUT_COMMIT_AUTHOR_EMAIL: ${{ inputs.commit-author-email }}
         INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_ACTION_REF: ${{ github.action_ref }}
       run: bash "${{ github.action_path }}/update-version.sh"
