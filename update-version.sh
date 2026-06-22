@@ -122,6 +122,10 @@ main() {
   log "Tag    : ${raw_version}"
   log "Version: ${version}"
 
+  if [[ -z "${version}" ]]; then
+    fail "Resolved version is empty (input was '${raw_version}'). Refusing to update files."
+  fi
+
   # --- Update files ---
   step "Updating files"
 

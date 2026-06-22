@@ -11,9 +11,11 @@ inputs:
   version:
     description: >
       The version string to write. Defaults to the triggering tag name.
+      On a release event, uses github.event.release.tag_name (always populated);
+      otherwise falls back to github.ref_name.
       A leading 'v' prefix is automatically stripped (e.g. 'v1.2.3' → '1.2.3').
     required: false
-    default: ${{ github.ref_name }}
+    default: ${{ github.event.release.tag_name || github.ref_name }}
 
   files:
     description: >
