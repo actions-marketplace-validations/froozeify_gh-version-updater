@@ -134,22 +134,31 @@ main() {
   # --- Update files ---
   step "Updating files"
 
-  if [[ "${files_input}" == "auto" ]]; then
-    log "Mode: auto-detect"
-    try_auto_detect "${version}"
-  else
-    log "Mode: explicit list"
-    try_explicit_files "${files_input}" "${version}"
-  fi
+  case "${files_input}" in
+    auto)
+      log "Mode: auto-detect"
+      try_auto_detect "${version}"
+      ;;
+    '' | none)
+      log "Mode: custom rules only"
+      if [[ -z "${custom_rules}" ]]; then
+        fail "files is 'none' but no custom-rules were provided — nothing to do."
+      fi
+      ;;
+    *)
+      log "Mode: explicit list"
+      try_explicit_files "${files_input}" "${version}"
+      ;;
+  esac
 
-  # Custom rules run on top of built-in updates (or alone if files is explicit).
+  # Custom rules run on top of built-in updates (or alone when files is 'none').
   if [[ -n "${custom_rules}" ]]; then
     step "Applying custom rules"
     apply_custom_rules "${custom_rules}" "${version}"
   fi
 
   if [[ ${#UPDATED_FILES[@]} -eq 0 ]]; then
-    fail "No files were updated."
+    fail "No files were updated (files='${files_input}', custom rules: ${#custom_rules} chars)."
   fi
 
   log "Files updated: ${UPDATED_FILES[*]}"

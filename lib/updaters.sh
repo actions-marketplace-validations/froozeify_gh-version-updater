@@ -135,10 +135,6 @@ try_auto_detect() {
       "version: ${version}"
     UPDATED_FILES+=("pubspec.yaml")
   fi
-
-  if [[ ${#UPDATED_FILES[@]} -eq 0 ]]; then
-    fail "Auto-detection found no supported config files in the repository root."
-  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -150,7 +146,6 @@ try_auto_detect() {
 try_explicit_files() {
   local files_input="$1"
   local version="$2"
-  local initial_count="${#UPDATED_FILES[@]}"
 
   # Split on commas; -r (raw) and -a (array) have no long forms in the bash built-in.
   IFS=',' read -ra file_list <<< "${files_input}"
@@ -193,10 +188,6 @@ try_explicit_files() {
         ;;
     esac
   done
-
-  if [[ ${#UPDATED_FILES[@]} -eq "${initial_count}" ]]; then
-    fail "No files were updated from the explicit file list."
-  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -205,11 +196,14 @@ try_explicit_files() {
 
 # Apply user-defined regex rules for any file format.
 # Rule format (one per line):  file:search_regex:replacement_template
-# Lines starting with '#' and blank lines are skipped.
+# A literal ':' inside search_regex or replacement_template must be escaped as '\:'
+# (e.g. to match a YAML "version:" key). Lines starting with '#' and blank lines are skipped.
 # Appends updated file paths to the global UPDATED_FILES array.
 apply_custom_rules() {
   local rules_input="$1"
   local version="$2"
+  # Unlikely to appear in a rule line; stands in for an escaped '\:' during splitting.
+  local placeholder=$'\x01'
 
   # -r (raw) has no long form in the bash built-in.
   while IFS= read -r line; do
@@ -219,12 +213,20 @@ apply_custom_rules() {
     # Skip blank lines and comments.
     [[ -z "${line}" || "${line}" == \#* ]] && continue
 
-    # Split on the first two ':' so the replacement may itself contain ':'.
-    local rule_file search_regex replacement_template
+    # Protect escaped colons so they survive the field split below, then split on
+    # the first two remaining ':' (replacement_template may still contain unescaped ':').
+    local escaped_line rule_file search_regex replacement_template
+    escaped_line="${line//\\:/${placeholder}}"
 
-    rule_file="$(echo            "${line}" | cut --delimiter=':' --fields=1)"
-    search_regex="$(echo         "${line}" | cut --delimiter=':' --fields=2)"
-    replacement_template="$(echo "${line}" | cut --delimiter=':' --fields='3-')"
+    # --only-delimited: a line with no ':' at all yields empty fields (caught below)
+    # instead of cut's default of passing the whole line through unchanged.
+    rule_file="$(echo            "${escaped_line}" | cut --only-delimited --delimiter=':' --fields=1)"
+    search_regex="$(echo         "${escaped_line}" | cut --only-delimited --delimiter=':' --fields=2)"
+    replacement_template="$(echo "${escaped_line}" | cut --only-delimited --delimiter=':' --fields='3-')"
+
+    rule_file="${rule_file//${placeholder}/:}"
+    search_regex="${search_regex//${placeholder}/:}"
+    replacement_template="${replacement_template//${placeholder}/:}"
 
     if [[ -z "${rule_file}" || -z "${search_regex}" || -z "${replacement_template}" ]]; then
       warn "Skipping malformed custom rule: ${line}"

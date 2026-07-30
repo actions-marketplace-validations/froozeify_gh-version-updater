@@ -1,5 +1,7 @@
 # Froozeify's GH Version Updater (gVu)
 
+**Latest version:** `v1.0.2`
+
 A GitHub Action that updates the version field in your project's config files whenever a release is published.
 
 Supports `package.json`, `composer.json`, `pyproject.toml`, `Cargo.toml`, `pubspec.yaml`, and any custom file format via
@@ -36,7 +38,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: froozeify/update-version@v1
+      - uses: froozeify/gh-version-updater@v1
         # Auto-detects package.json / composer.json / etc. and commits the change.
 ```
 
@@ -44,17 +46,17 @@ jobs:
 
 ## Inputs
 
-| Input                 | Required | Default                                                      | Description                                                                   |
-|-----------------------|----------|--------------------------------------------------------------|-------------------------------------------------------------------------------|
-| `version`             | no       | `${{ github.event.release.tag_name \|\| github.ref_name }}`  | Version string. A leading `v` is stripped automatically (`v1.2.3` → `1.2.3`). |
-| `files`               | no       | `auto`                                                       | `auto` to detect known config files, or a comma-separated list of paths.      |
-| `custom-rules`        | no       | `""`                                                         | Extra update rules for unsupported file formats (see below).                  |
-| `commit`              | no       | `true`                                                       | Set to `false` to skip the commit step.                                       |
-| `commit-message`      | no       | `ci: Bump version to {version}`                              | Commit message. `{version}` is replaced with the clean version number.        |
-| `commit-branch`       | no       | `main`                                                       | Branch to push the commit to.                                                 |
-| `commit-author-name`  | no       | `froozeify-gh-version-updater`                               | Git author name for the commit.                                               |
-| `commit-author-email` | no       | `froozeify-gh-version-updater[bot]@users.noreply.github.com` | Git author email for the commit.                                              |
-| `token`               | no       | `${{ github.token }}`                                        | Token used to push the commit. Requires `contents: write`.                    |
+| Input                 | Required | Default                                                      | Description                                                                                                                                 |
+|-----------------------|----------|--------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| `version`             | no       | `${{ github.event.release.tag_name \|\| github.ref_name }}`  | Version string. A leading `v` is stripped automatically (`v1.2.3` → `1.2.3`).                                                               |
+| `files`               | no       | `auto`                                                       | `auto` to detect known config files, `none` to skip built-in updates and rely solely on `custom-rules`, or a comma-separated list of paths. |
+| `custom-rules`        | no       | `""`                                                         | Extra update rules for unsupported file formats (see below).                                                                                |
+| `commit`              | no       | `true`                                                       | Set to `false` to skip the commit step.                                                                                                     |
+| `commit-message`      | no       | `ci: Bump version to {version}`                              | Commit message. `{version}` is replaced with the clean version number.                                                                      |
+| `commit-branch`       | no       | `main`                                                       | Branch to push the commit to.                                                                                                               |
+| `commit-author-name`  | no       | `froozeify-gh-version-updater`                               | Git author name for the commit.                                                                                                             |
+| `commit-author-email` | no       | `froozeify-gh-version-updater[bot]@users.noreply.github.com` | Git author email for the commit.                                                                                                            |
+| `token`               | no       | `${{ github.token }}`                                        | Token used to push the commit. Requires `contents: write`.                                                                                  |
 
 ## Outputs
 
@@ -84,7 +86,7 @@ When `files` is set to `auto` (the default), the action updates every supported 
 Pin which files to update:
 
 ```yaml
-- uses: froozeify/update-version@v1
+- uses: froozeify/gh-version-updater@v1
   with:
     files: package.json, composer.json
 ```
@@ -96,10 +98,11 @@ Pin which files to update:
 Add support for any file format by providing regex rules:
 
 ```yaml
-- uses: froozeify/update-version@v1
+- uses: froozeify/gh-version-updater@v1
   with:
+    files: none
     custom-rules: |
-      Chart.yaml:^version:\s*.*$:version: {version}
+      Chart.yaml:^version\:\s*.*$:version\: {version}
       build.gradle:version\s*=\s*"[^"]*":version = "{version}"
       version.txt:^.*$:{version}
 ```
@@ -110,7 +113,16 @@ Add support for any file format by providing regex rules:
 - `search_regex`: extended regex matching the line to replace
 - `replacement_template`: replacement string; `{version}` is substituted with the clean version
 
-One rule per line. Lines starting with `#` are treated as comments and ignored.
+One rule per line. Lines starting with `#` are treated as comments and ignored. A literal `:` inside
+`search_regex` or `replacement_template` must be escaped as `\:` (as in the `Chart.yaml` example above, which
+matches a YAML `version:` key) — otherwise it is misread as the field separator.
+
+### Custom rules only
+
+Set `files: none` when none of your version strings live in a natively-supported file
+(`package.json`, `composer.json`, `pyproject.toml`, `Cargo.toml`, `pubspec.yaml`) — for example a PHP constant in a
+plain `.php` file. Without `files: none`, `auto` still runs auto-detection first (and fails if it finds nothing to
+update), and any other value is treated as an explicit file list.
 
 ---
 
@@ -136,11 +148,11 @@ jobs:
 
       - name: Update version
         id: bump
-        uses: froozeify/update-version@v1
+        uses: froozeify/gh-version-updater@v1
         with:
           files: package.json
           custom-rules: |
-            Chart.yaml:^appVersion:\s*"[^"]*":appVersion: "{version}"
+            Chart.yaml:^appVersion\:\s*"[^"]*":appVersion\: "{version}"
           commit-message: "ci: release {version}"
 
       - run: echo "Released ${{ steps.bump.outputs.version }}"
