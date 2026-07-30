@@ -1,6 +1,6 @@
 # Froozeify's GH Version Updater (gVu)
 
-**Latest version:** `v1.0.2`
+**Latest version:** `v1.0.5`
 
 A GitHub Action that updates the version field in your project's config files whenever a release is published.
 
