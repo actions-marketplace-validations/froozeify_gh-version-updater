@@ -30,9 +30,10 @@ inputs:
     description: >
       Additional update rules for file formats not natively supported.
       One rule per line, in the format:  file:search_regex:replacement_template
+      A literal ':' in search_regex or replacement_template must be escaped as '\:'.
       The placeholder {version} in the replacement is substituted with the clean version.
       Example:
-        Chart.yaml:^version:\s*.*$:version: {version}
+        Chart.yaml:^version\:\s*.*$:version\: {version}
         version.txt:^.*$:{version}
     required: false
     default: ''

@@ -5,6 +5,23 @@ on:
     types: [published]
 
 jobs:
+  update-readme:
+    name: Bump README latest version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Dogfooding: this action updates its own README using the same custom-rules
+      - name: Update latest version in README
+        uses: ./
+        with:
+          files: none
+          custom-rules: |
+            README.md:\*\*Latest version\:\*\* `[^`]*`:**Latest version\:** `v{version}`
+
   update-semver:
     runs-on: ubuntu-latest
     permissions:
