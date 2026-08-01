@@ -46,17 +46,18 @@ jobs:
 
 ## Inputs
 
-| Input                 | Required | Default                                                      | Description                                                                                                                                 |
-|-----------------------|----------|--------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| `version`             | no       | `${{ github.event.release.tag_name \|\| github.ref_name }}`  | Version string. A leading `v` is stripped automatically (`v1.2.3` → `1.2.3`).                                                               |
-| `files`               | no       | `auto`                                                       | `auto` to detect known config files, `none` to skip built-in updates and rely solely on `custom-rules`, or a comma-separated list of paths. |
-| `custom-rules`        | no       | `""`                                                         | Extra update rules for unsupported file formats (see below).                                                                                |
-| `commit`              | no       | `true`                                                       | Set to `false` to skip the commit step.                                                                                                     |
-| `commit-message`      | no       | `ci: Bump version to {version}`                              | Commit message. `{version}` is replaced with the clean version number.                                                                      |
-| `commit-branch`       | no       | `main`                                                       | Branch to push the commit to.                                                                                                               |
-| `commit-author-name`  | no       | `froozeify-gh-version-updater`                               | Git author name for the commit.                                                                                                             |
-| `commit-author-email` | no       | `froozeify-gh-version-updater[bot]@users.noreply.github.com` | Git author email for the commit.                                                                                                            |
-| `token`               | no       | `${{ github.token }}`                                        | Token used to push the commit. Requires `contents: write`.                                                                                  |
+| Input                 | Required | Default                                                     | Description                                                                                                                                 |
+|-----------------------|----------|-------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| `version`             | no       | `${{ github.event.release.tag_name \|\| github.ref_name }}` | Version string. A leading `v` is stripped automatically (`v1.2.3` → `1.2.3`).                                                               |
+| `files`               | no       | `auto`                                                      | `auto` to detect known config files, `none` to skip built-in updates and rely solely on `custom-rules`, or a comma-separated list of paths. |
+| `custom-rules`        | no       | `""`                                                        | Extra update rules for unsupported file formats (see below).                                                                                |
+| `commit`              | no       | `true`                                                      | Set to `false` to skip the commit step.                                                                                                     |
+| `commit-message`      | no       | `ci: Bump version to {version}`                             | Commit message. `{version}` is replaced with the clean version number.                                                                      |
+| `commit-branch`       | no       | `main`                                                      | Branch to push the commit to.                                                                                                               |
+| `commit-method`       | no       | `api`                                                       | `api` commits via GitHub's `createCommitOnBranch` (signed, shows as Verified). `git` commits locally via `git commit`/`push` instead.       |
+| `commit-author-name`  | no       | `github-actions[bot]`                                       | Git author name for the commit. Only used when `commit-method: git`.                                                                        |
+| `commit-author-email` | no       | `41898282+github-actions[bot]@users.noreply.github.com`     | Git author email for the commit. Only used when `commit-method: git`.                                                                       |
+| `token`               | no       | `${{ github.token }}`                                       | Token used to push the commit. Requires `contents: write`.                                                                                  |
 
 ## Outputs
 
@@ -66,6 +67,31 @@ jobs:
 | `files-updated` | Space-separated list of files that were modified.      |
 
 ---
+
+## Commit identity
+
+Commits are authored as `github-actions[bot]` — the real, GitHub-linked bot account behind `${{ github.token }}`.  
+By default (`commit-method: api`) they're also made through GitHub's `createCommitOnBranch` API, so GitHub signs them server-side and they show a green **Verified** badge; the author always matches whichever token you pass, regardless of
+`commit-author-name`/`commit-author-email`.
+
+### Committing as a GitHub App
+
+If you want commits attributed to your own bot, need to bypass branch protection, or want the version-bump commit to *trigger* other workflows (`GITHUB_TOKEN` pushes deliberately don't, to avoid infinite loops) — register your own GitHub App, install it on the repo, and mint a token for it with [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token):
+
+```yaml
+- uses: actions/create-github-app-token@v3
+  id: app-token
+  with:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_KEY }}
+
+- uses: froozeify/gh-version-updater@v1
+  with:
+    token: ${{ steps.app-token.outputs.token }}
+```
+
+With `commit-method: api` (the default) that's the whole change — the commit author follows the
+token automatically.
 
 ## Auto-detected files
 
