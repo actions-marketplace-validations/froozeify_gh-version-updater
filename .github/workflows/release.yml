@@ -1,4 +1,4 @@
-name: Update semver tags
+name: Release
 
 on:
   release:
