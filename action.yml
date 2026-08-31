@@ -11,9 +11,11 @@ inputs:
   version:
     description: >
       The version string to write. Defaults to the triggering tag name.
+      On a release event, uses github.event.release.tag_name (always populated);
+      otherwise falls back to github.ref_name.
       A leading 'v' prefix is automatically stripped (e.g. 'v1.2.3' → '1.2.3').
     required: false
-    default: ${{ github.ref_name }}
+    default: ${{ github.event.release.tag_name || github.ref_name }}
 
   files:
     description: >
@@ -28,9 +30,10 @@ inputs:
     description: >
       Additional update rules for file formats not natively supported.
       One rule per line, in the format:  file:search_regex:replacement_template
+      A literal ':' in search_regex or replacement_template must be escaped as '\:'.
       The placeholder {version} in the replacement is substituted with the clean version.
       Example:
-        Chart.yaml:^version:\s*.*$:version: {version}
+        Chart.yaml:^version\:\s*.*$:version\: {version}
         version.txt:^.*$:{version}
     required: false
     default: ''
@@ -55,18 +58,26 @@ inputs:
     required: false
     default: main
 
+  commit-method:
+    description: >
+      "api" (default) creates the commit through GitHub's createCommitOnBranch GraphQL mutation:
+      GitHub signs it server-side (shows as Verified), and the author is always the identity
+      behind `token` — commit-author-name/email are ignored. "git" uses a local git commit + push
+      instead, for SSH remotes or self-hosted setups where the API path isn't reachable.
+    required: false
+    default: api
+
   commit-author-name:
     description: >
-      The git author name for the version-bump commit.
-      Defaults to "froozeify-gh-version-updater" so commits are clearly traceable to this action.
+      The git author name for the version-bump commit. Only used when commit-method is "git".
     required: false
-    default: froozeify-gh-version-updater
+    default: github-actions[bot]
 
   commit-author-email:
     description: >
-      The git author email for the version-bump commit.
+      The git author email for the version-bump commit. Only used when commit-method is "git".
     required: false
-    default: froozeify-gh-version-updater[bot]@users.noreply.github.com
+    default: 41898282+github-actions[bot]@users.noreply.github.com
 
   token:
     description: >
@@ -96,7 +107,9 @@ runs:
         INPUT_COMMIT: ${{ inputs.commit }}
         INPUT_COMMIT_MESSAGE: ${{ inputs.commit-message }}
         INPUT_COMMIT_BRANCH: ${{ inputs.commit-branch }}
+        INPUT_COMMIT_METHOD: ${{ inputs.commit-method }}
         INPUT_COMMIT_AUTHOR_NAME: ${{ inputs.commit-author-name }}
         INPUT_COMMIT_AUTHOR_EMAIL: ${{ inputs.commit-author-email }}
         INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_ACTION_REF: ${{ github.action_ref }}
       run: bash "${{ github.action_path }}/update-version.sh"
